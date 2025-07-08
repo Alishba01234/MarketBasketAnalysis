@@ -39,182 +39,182 @@ if page == "Home":
 # Market Basket Analysis page
 elif page == "Market Basket Analysis":
     st.title("🛍️ Market Basket Analysis")
-st.write("Discover products that are frequently purchased together")
+    st.write("Discover products that are frequently purchased together")
 
-with st.expander("⚙️ Analysis Settings"):
-    col1, col2 = st.columns(2)
-    min_support = col1.slider("Minimum Support", 0.001, 0.2, 0.03, 0.001, 
-                            help="Minimum frequency of itemset occurrence")
-    min_lift = col2.slider("Minimum Lift", 0.5, 5.0, 1.2, 0.1,
-                         help="Strength of association between items")
+    with st.expander("⚙️ Analysis Settings"):
+        col1, col2 = st.columns(2)
+        min_support = col1.slider("Minimum Support", 0.001, 0.2, 0.03, 0.001, 
+                                help="Minimum frequency of itemset occurrence")
+        min_lift = col2.slider("Minimum Lift", 0.5, 5.0, 1.2, 0.1,
+                             help="Strength of association between items")
 
-if st.button("🔍 Run Analysis", type="primary"):
-    with st.spinner("Analyzing purchase patterns..."):
-        try:
-            # Filter training data
-            train_data = df[df['split'] == 0]
+    if st.button("🔍 Run Analysis", type="primary"):
+        with st.spinner("Analyzing purchase patterns..."):
+            try:
+                # Filter training data
+                train_data = df[df['split'] == 0]
             
-            # Filter to users with at least 2 purchases
-            user_counts = train_data['user_id'].value_counts()
-            valid_users = user_counts[user_counts >= 2].index
-            filtered_data = train_data[train_data['user_id'].isin(valid_users)]
+                # Filter to users with at least 2 purchases
+                user_counts = train_data['user_id'].value_counts()
+                valid_users = user_counts[user_counts >= 2].index
+                filtered_data = train_data[train_data['user_id'].isin(valid_users)]
             
-            if len(filtered_data) == 0:
-                st.error("❌ Insufficient transaction data. Try lowering the minimum support.")
-                st.stop()
+                if len(filtered_data) == 0:
+                    st.error("❌ Insufficient transaction data. Try lowering the minimum support.")
+                    st.stop()
             
-            # Prepare transactions
-            user_transactions = filtered_data.groupby('user_id')['item_id'].apply(list).tolist()
+                # Prepare transactions
+                user_transactions = filtered_data.groupby('user_id')['item_id'].apply(list).tolist()
             
-            # One-hot encoding
-            te = TransactionEncoder()
-            te_data = te.fit(user_transactions).transform(user_transactions)
-            df_te = pd.DataFrame(te_data, columns=te.columns_)
+                # One-hot encoding
+                te = TransactionEncoder()
+                te_data = te.fit(user_transactions).transform(user_transactions)
+                df_te = pd.DataFrame(te_data, columns=te.columns_)
             
-            # Apriori algorithm (now looking for triplets with max_len=3)
-            frequent_itemsets = apriori(df_te, min_support=min_support, use_colnames=True, max_len=3)
+                # Apriori algorithm (now looking for triplets with max_len=3)
+                frequent_itemsets = apriori(df_te, min_support=min_support, use_colnames=True, max_len=3)
             
-            if len(frequent_itemsets) == 0:
-                st.warning(f"⚠️ No itemsets found with support ≥ {min_support}. Try lowering the threshold.")
-                st.stop()
+                if len(frequent_itemsets) == 0:
+                    st.warning(f"⚠️ No itemsets found with support ≥ {min_support}. Try lowering the threshold.")
+                    st.stop()
             
-            # Generate rules
-            rules = association_rules(frequent_itemsets, metric="lift", min_threshold=min_lift)
+                # Generate rules
+                rules = association_rules(frequent_itemsets, metric="lift", min_threshold=min_lift)
             
-            if len(rules) == 0:
-                st.warning(f"⚠️ No rules found with lift ≥ {min_lift}. Try reducing the lift threshold.")
-                st.stop()
+                if len(rules) == 0:
+                    st.warning(f"⚠️ No rules found with lift ≥ {min_lift}. Try reducing the lift threshold.")
+                    st.stop()
             
-            rules_sorted = rules.sort_values(by="lift", ascending=False)
+                rules_sorted = rules.sort_values(by="lift", ascending=False)
             
-            # Display results
-            st.success(f"✅ Found {len(rules)} association rules")
+                # Display results
+                st.success(f"✅ Found {len(rules)} association rules")
             
-            # Helper function to get product details
-            def get_product_info(item_set):
-                items = []
-                for item_id in item_set:
-                    item = df[df['item_id'] == item_id].iloc[0]
-                    items.append(f"{item['brand']} {item['category']} (ID: {item_id})")
-                return " + ".join(items)
+                # Helper function to get product details
+                def get_product_info(item_set):
+                    items = []
+                    for item_id in item_set:
+                        item = df[df['item_id'] == item_id].iloc[0]
+                        items.append(f"{item['brand']} {item['category']} (ID: {item_id})")
+                    return " + ".join(items)
             
-            # TABBED DISPLAY FOR PAIRS AND TRIPLETS
-            tab1, tab2 = st.tabs(["Top Product Pairs", "Top Product Triplets"])
+                # TABBED DISPLAY FOR PAIRS AND TRIPLETS
+                tab1, tab2 = st.tabs(["Top Product Pairs", "Top Product Triplets"])
             
-            with tab1:
-                st.subheader("Top Product Pairs")
-                pairs = rules_sorted[
-                    (rules_sorted['antecedents'].apply(len) == 1) & 
-                    (rules_sorted['consequents'].apply(len) == 1)
-                ]
+                with tab1:
+                    st.subheader("Top Product Pairs")
+                    pairs = rules_sorted[
+                        (rules_sorted['antecedents'].apply(len) == 1) & 
+                        (rules_sorted['consequents'].apply(len) == 1)
+                    ]
                 
-                if len(pairs) > 0:
-                    # Create enriched display
-                    pairs_display = pairs[['antecedents', 'consequents', 'support', 'confidence', 'lift']].copy()
-                    pairs_display['Rule'] = pairs_display.apply(
-                        lambda x: f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}", 
-                        axis=1)
+                    if len(pairs) > 0:
+                        # Create enriched display
+                        pairs_display = pairs[['antecedents', 'consequents', 'support', 'confidence', 'lift']].copy()
+                        pairs_display['Rule'] = pairs_display.apply(
+                            lambda x: f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}", 
+                            axis=1)
                     
-                    # Show top 10 pairs
-                    st.dataframe(
-                        pairs_display[['Rule', 'support', 'confidence', 'lift']]
-                        .rename(columns={
-                            'support': 'Support', 
-                            'confidence': 'Confidence',
-                            'lift': 'Lift'
-                        })
-                        .head(10),
-                        column_config={
-                            "Rule": "Product Association",
-                            "Support": st.column_config.NumberColumn(format="%.3f"),
-                            "Confidence": st.column_config.NumberColumn(format="%.3f"),
-                            "Lift": st.column_config.NumberColumn(format="%.2f")
-                        }
-                    )
+                        # Show top 10 pairs
+                        st.dataframe(
+                            pairs_display[['Rule', 'support', 'confidence', 'lift']]
+                            .rename(columns={
+                                'support': 'Support', 
+                                'confidence': 'Confidence',
+                                'lift': 'Lift'
+                            })
+                            .head(10),
+                            column_config={
+                                "Rule": "Product Association",
+                                "Support": st.column_config.NumberColumn(format="%.3f"),
+                                "Confidence": st.column_config.NumberColumn(format="%.3f"),
+                                "Lift": st.column_config.NumberColumn(format="%.2f")
+                            }
+                        )
                     
-                    # Visualization for pairs
-                    fig1, ax1 = plt.subplots(figsize=(10, 6))
-                    top_pairs = pairs.head(5)
-                    ax1.barh(
-                        [f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}" 
-                         for _, x in top_pairs.iterrows()],
-                        top_pairs['lift'],
-                        color='skyblue'
-                    )
-                    ax1.set_xlabel('Lift Score')
-                    ax1.set_title('Top Product Pairs by Lift')
-                    st.pyplot(fig1)
-                else:
-                    st.info("ℹ️ No significant product pairs found")
+                        # Visualization for pairs
+                        fig1, ax1 = plt.subplots(figsize=(10, 6))
+                        top_pairs = pairs.head(5)
+                        ax1.barh(
+                            [f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}" 
+                             for _, x in top_pairs.iterrows()],
+                            top_pairs['lift'],
+                            color='skyblue'
+                        )
+                        ax1.set_xlabel('Lift Score')
+                        ax1.set_title('Top Product Pairs by Lift')
+                        st.pyplot(fig1)
+                    else:
+                        st.info("ℹ️ No significant product pairs found")
             
-            with tab2:
-                st.subheader("Top Product Triplets")
-                triplets = rules_sorted[
-                    ((rules_sorted['antecedents'].apply(len) == 2) & 
-                     (rules_sorted['consequents'].apply(len) == 1)) |
-                    ((rules_sorted['antecedents'].apply(len) == 1) & 
-                     (rules_sorted['consequents'].apply(len) == 2))
-                ]
+                with tab2:
+                    st.subheader("Top Product Triplets")
+                    triplets = rules_sorted[
+                        ((rules_sorted['antecedents'].apply(len) == 2) & 
+                         (rules_sorted['consequents'].apply(len) == 1)) |
+                        ((rules_sorted['antecedents'].apply(len) == 1) & 
+                         (rules_sorted['consequents'].apply(len) == 2))
+                    ]
                 
-                if len(triplets) > 0:
-                    # Create enriched display
-                    triplets_display = triplets[['antecedents', 'consequents', 'support', 'confidence', 'lift']].copy()
-                    triplets_display['Rule'] = triplets_display.apply(
-                        lambda x: f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}", 
-                        axis=1)
+                    if len(triplets) > 0:
+                        # Create enriched display
+                        triplets_display = triplets[['antecedents', 'consequents', 'support', 'confidence', 'lift']].copy()
+                        triplets_display['Rule'] = triplets_display.apply(
+                            lambda x: f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}", 
+                            axis=1)
                     
-                    # Show top 10 triplets
-                    st.dataframe(
-                        triplets_display[['Rule', 'support', 'confidence', 'lift']]
-                        .rename(columns={
-                            'support': 'Support', 
-                            'confidence': 'Confidence',
-                            'lift': 'Lift'
-                        })
-                        .head(10),
-                        column_config={
-                            "Rule": "Product Association",
-                            "Support": st.column_config.NumberColumn(format="%.3f"),
-                            "Confidence": st.column_config.NumberColumn(format="%.3f"),
-                            "Lift": st.column_config.NumberColumn(format="%.2f")
-                        }
-                    )
+                        # Show top 10 triplets
+                        st.dataframe(
+                            triplets_display[['Rule', 'support', 'confidence', 'lift']]
+                            .rename(columns={
+                                'support': 'Support', 
+                                'confidence': 'Confidence',
+                                'lift': 'Lift'
+                            })
+                            .head(10),
+                            column_config={
+                                "Rule": "Product Association",
+                                "Support": st.column_config.NumberColumn(format="%.3f"),
+                                "Confidence": st.column_config.NumberColumn(format="%.3f"),
+                                "Lift": st.column_config.NumberColumn(format="%.2f")
+                            }
+                        )
                     
-                    # Visualization for triplets
-                    fig2, ax2 = plt.subplots(figsize=(10, 6))
-                    top_triplets = triplets.head(5)
-                    ax2.barh(
-                        [f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}" 
-                         for _, x in top_triplets.iterrows()],
-                        top_triplets['lift'],
-                        color='lightgreen'
-                    )
-                    ax2.set_xlabel('Lift Score')
-                    ax2.set_title('Top Product Triplets by Lift')
-                    st.pyplot(fig2)
-                else:
-                    st.info("ℹ️ No significant product triplets found")
+                        # Visualization for triplets
+                        fig2, ax2 = plt.subplots(figsize=(10, 6))
+                        top_triplets = triplets.head(5)
+                        ax2.barh(
+                            [f"{get_product_info(x['antecedents'])} → {get_product_info(x['consequents'])}" 
+                             for _, x in top_triplets.iterrows()],
+                            top_triplets['lift'],
+                            color='lightgreen'
+                        )
+                        ax2.set_xlabel('Lift Score')
+                        ax2.set_title('Top Product Triplets by Lift')
+                        st.pyplot(fig2)
+                    else:
+                        st.info("ℹ️ No significant product triplets found")
             
-            # Combined metrics visualization
-            st.subheader("Association Rule Quality Metrics")
-            fig3, (ax3, ax4) = plt.subplots(1, 2, figsize=(14, 5))
+                # Combined metrics visualization
+                st.subheader("Association Rule Quality Metrics")
+                fig3, (ax3, ax4) = plt.subplots(1, 2, figsize=(14, 5))
             
-            # Support vs Confidence
-            ax3.scatter(rules['support'], rules['confidence'], alpha=0.5, color='blue')
-            ax3.set_xlabel('Support')
-            ax3.set_ylabel('Confidence')
-            ax3.set_title('Support vs Confidence')
+                # Support vs Confidence
+                ax3.scatter(rules['support'], rules['confidence'], alpha=0.5, color='blue')
+                ax3.set_xlabel('Support')
+                ax3.set_ylabel('Confidence')
+                ax3.set_title('Support vs Confidence')
             
-            # Support vs Lift
-            ax4.scatter(rules['support'], rules['lift'], alpha=0.5, color='orange')
-            ax4.set_xlabel('Support')
-            ax4.set_ylabel('Lift')
-            ax4.set_title('Support vs Lift')
+                # Support vs Lift
+                ax4.scatter(rules['support'], rules['lift'], alpha=0.5, color='orange')
+                ax4.set_xlabel('Support')
+                ax4.set_ylabel('Lift')
+                ax4.set_title('Support vs Lift')
             
-            st.pyplot(fig3)
+                st.pyplot(fig3)
             
-        except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
 
 # Recommendation System Page
 elif page == "Recommendation System":
