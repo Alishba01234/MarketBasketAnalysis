@@ -6,7 +6,6 @@ from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
-# Load your dataset (replace with your actual data loading)
 @st.cache_data
 def load_data():
     # This should be replaced with your actual data loading code
